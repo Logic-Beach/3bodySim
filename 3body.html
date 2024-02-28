@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three-Body Simulation Frame</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: start;
+            padding-top: 20px;
+        }
+
+        #canvas-container {
+            position: relative;
+        }
+
+        #settings {
+            margin-left: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            margin-right: 5px;
+        }
+
+        input {
+            margin-right: 10px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <script>
+            // Define the gravitational constant
+            const G = 6.67430e-11; // m^3 kg^-1 s^-2
+
+            let bodies = [
+                { id: 1, weight: 5e12, vx: -1, vy: 0, x: 300, y: 200, color: 'red' },
+                { id: 2, weight: 5e12, vx: 0, vy: -1.1, x: 425, y: 350, color: 'green' },
+                { id: 3, weight: 5e12, vx: 1, vy: 1, x: 225, y: 375, color: 'blue' }
+            ];
+
+            function setup() {
+                let cnv = createCanvas(600, 600);
+                cnv.parent('canvas-container');
+                noStroke();
+                fill(255);
+            }
+
+            function draw() {
+                // Use a semi-transparent background to create a fading effect for the trails
+                // Adjust the alpha value (e.g., 10) to control the trail's length/fading speed
+                fill(0, 0, 0, 10);
+                rect(0, 0, width, height);
+
+                // No need to call background() here; the semi-transparent rect creates the fade effect
+
+                const timestep = 1; // Adjust time step as needed
+
+                updateVelocity(timestep);
+                updatePosition(timestep);
+
+                bodies.forEach(body => {
+                    fill(body.color);
+                    circle(body.x, body.y, 23); // Adjust size as needed
+                });
+            }
+
+            function calculateForce(body1, body2) {
+                const dx = body2.x - body1.x;
+                const dy = body2.y - body1.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                const force = (G * body1.weight * body2.weight) / (distance * distance);
+
+                const theta = Math.atan2(dy, dx);
+                const fx = Math.cos(theta) * force;
+                const fy = Math.sin(theta) * force;
+
+                return { fx, fy, distance };
+            }
+
+            function updateVelocity(timestep) {
+                bodies.forEach((body, index) => {
+                    let fxTotal = 0;
+                    let fyTotal = 0;
+
+                    bodies.forEach((otherBody, otherIndex) => {
+                        if (index !== otherIndex) {
+                            const { fx, fy } = calculateForce(body, otherBody);
+                            fxTotal += fx;
+                            fyTotal += fy;
+                        }
+                    });
+
+                    body.vx += (fxTotal / body.weight) * timestep;
+                    body.vy += (fyTotal / body.weight) * timestep;
+                });
+            }
+
+            function updatePosition(timestep) {
+                bodies.forEach(body => {
+                    // Update position based on velocity
+                    body.x += body.vx * timestep;
+                    body.y += body.vy * timestep;
+
+                    // Check for collisions with the canvas boundaries
+                    // Assuming the canvas size is 600x600 as set in the setup function
+                    // Also considering the size of the drawn bodies to avoid half-collisions where the body goes partially out of bounds
+                    const bodyRadius = 10; // Half of the diameter used in the circle() call
+                    if (body.x <= bodyRadius || body.x >= 600 - bodyRadius) {
+                        body.vx = -body.vx; // Reverse the horizontal velocity if hit left or right wall
+                    }
+                    if (body.y <= bodyRadius || body.y >= 600 - bodyRadius) {
+                        body.vy = -body.vy; // Reverse the vertical velocity if hit top or bottom wall
+                    }
+                });
+                //for pacman style:
+                /*
+                                    // Canvas dimensions
+                    const canvasWidth = 600;
+                    const canvasHeight = 600;
+
+                    // Check for wrap-around conditions
+                    if (body.x > canvasWidth) {
+                        body.x = 0; // If it goes beyond right boundary, reappear on the left
+                    } else if (body.x < 0) {
+                        body.x = canvasWidth; // If it goes beyond left boundary, reappear on the right
+                    }
+
+                    if (body.y > canvasHeight) {
+                        body.y = 0; // If it goes beyond bottom boundary, reappear at the top
+                    } else if (body.y < 0) {
+                        body.y = canvasHeight; // If it goes beyond top boundary, reappear at the bottom
+                    }
+                */
+            }
+        </script>
+    </div>
+    <div id="settings">
+        <h2>Three-Body Simulation Settings</h2>
+        <!-- Settings form will be dynamically inserted here -->
+        <button onclick="updateBodies()">Update Simulation</button>
+    </div>
+    <script>
+        function createSettingsForm() {
+            const settingsDiv = document.getElementById('settings');
+            bodies.forEach(body => {
+                const div = document.createElement('div');
+                div.className = 'input-group';
+                div.innerHTML = `
+                <label style="color: ${body.color};">Mass ${body.id} (e.g., 5e10):</label>
+                <input type="text" value="${body.weight}" id="mass${body.id}" style="border-color: ${body.color};"><br>
+                <label style="color: ${body.color};">Velocity X ${body.id} (m/s):</label>
+                <input type="text" value="${body.vx}" id="velocityX${body.id}" style="border-color: ${body.color};"><br>
+                <label style="color: ${body.color};">Velocity Y ${body.id} (m/s):</label>
+                <input type="text" value="${body.vy}" id="velocityY${body.id}" style="border-color: ${body.color};">
+            `;
+                settingsDiv.appendChild(div);
+            });
+        }
+
+        let initialStates = bodies.map(body => ({ x: body.x, y: body.y }));
+
+        function updateBodies() {
+            bodies.forEach((body, index) => {
+                // Retrieve the new values from the form
+                const massInput = parseFloat(document.getElementById(`mass${body.id}`).value);
+                const velocityXInput = parseFloat(document.getElementById(`velocityX${body.id}`).value);
+                const velocityYInput = parseFloat(document.getElementById(`velocityY${body.id}`).value);
+
+                // Update the body's mass and velocities with the new values
+                body.weight = massInput;
+                body.vx = velocityXInput;
+                body.vy = velocityYInput;
+
+                // Reset the body's position to its initial state
+                body.x = initialStates[index].x;
+                body.y = initialStates[index].y;
+            });
+
+            // Refresh the simulation view to reflect changes
+            redraw(); // Use redraw() if you're in noLoop() mode, or the simulation will automatically update in loop() mode.
+        }
+
+        window.onload = createSettingsForm;
+    </script>
+</body>
+
+</html>
